@@ -6,7 +6,22 @@ import org.scalatest._
 
 class Spec extends FlatSpec with Matchers with PropertyChecks {
 
-  def testSize(size: Int) = {
+  val sizes = List(1000, 123132, 123132, 1)
+
+
+  "DArray" should "be safe to iterate" in {
+    sizes foreach testIter
+  }
+
+  "DArray" should "be safe to iterator.iterate" in {
+    sizes foreach testIteratorIter
+  }
+
+  "DArray" should "be safe to foreach" in {
+    sizes foreach testForeach
+  }
+
+  def testIter(size: Int) = {
     val r = 0 until size
     val arr = DArray(r: _*)
     for(x <- r) {
@@ -15,21 +30,28 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 
-
-  "DArray-1000" should "be safe to iterate" in {
-    testSize(1000)
+  def testIteratorIter(size: Int) = {
+    val r = 0 until size
+    val arr = DArray(r: _*)
+    val iter = arr.iterator
+    val iter2 = r.iterator
+    while(iter2.hasNext) {
+      assert(iter.hasNext)
+      assert(iter.next() == iter2.next())
+    }
+    assert(!iter.hasNext)
   }
 
-  "DArray-123132" should "be safe to iterate" in {
-    testSize(123132)
+  def testForeach(size: Int) = {
+    val r = 0 until size
+    val arr = DArray(r: _*)
+    var list1: List[Int] = Nil
+    var list2: List[Int] = Nil
+    r.foreach(x => list1 = x :: list1)
+    arr.foreach(x => list2 = x :: list2)
+    assert(list1 == list2)
   }
 
-  "DArray-7" should "be safe to iterate" in {
-    testSize(123132)
-  }
-  "DArray-1" should "be safe to iterate" in {
-    testSize(1)
-  }
 
 
   it should "throw NoSuchElementException if an empty stack is popped" in {
