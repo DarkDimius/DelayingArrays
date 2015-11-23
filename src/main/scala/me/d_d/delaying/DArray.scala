@@ -1,5 +1,7 @@
 package me.d_d.delaying
 
+import scala.annotation.tailrec
+
 class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
   // println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}]")
                                          // 0         1  2         3   4  5  6     7 8        x
@@ -34,22 +36,13 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     31 - java.lang.Integer.numberOfLeadingZeros(outerIdx + 1)
   }
 
-  final def larrayElem(outerIdx: Int) = {
-    // if (outerIdx >= leftSize) ???
-    outerIdx + 1 - java.lang.Integer.highestOneBit(outerIdx + 1)
-  }
-
-  final def rarrayElem(outerIdx: Int) = {
-    larrayElem(leftSize + rightSize - outerIdx - 1)
-  }
-
-  final def rarrayIdx(outerIdx: Int) = {
-    larraySize(leftSize + rightSize - outerIdx - 1)
-  }
-
   def getById(id: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
-    var r = id
-    var c = sumLength
+    val subst1 = if (id > 0) sumLength & (java.lang.Integer.highestOneBit(id) - 1) else 0
+    var r = id - subst1
+    var c = sumLength - subst1
+    val subst2 = r & c
+    r = r - subst2
+    c = c - subst2
     var j = 0
     var b = Integer.lowestOneBit(c)
     while (r >= b && r != 0) {
@@ -291,6 +284,85 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     val rez = new DArray(leftArray, right)
     rez.rebalance()
     rez
+  }
+
+  def foreach(f : scala.Function1[Int, Unit]): scala.Unit = {
+
+    var rollingSourceArrayId = 0
+
+    while(rollingSourceArrayId < left.length) {
+      if(left(rollingSourceArrayId) ne null) {
+        var i = 0
+        while (i < left(rollingSourceArrayId).length) {
+          f.apply(left(rollingSourceArrayId)(i))
+          i = i + 1
+        }
+
+      }
+      rollingSourceArrayId = rollingSourceArrayId + 1
+    }
+
+    rollingSourceArrayId = right.length - 1
+
+    while(rollingSourceArrayId >= 0) {
+      if(right(rollingSourceArrayId) ne null) {
+        var i = right(rollingSourceArrayId).length - 1
+        while (i >= 0) {
+          f.apply(right(rollingSourceArrayId)(i))
+          i = i - 1
+        }
+
+      }
+      rollingSourceArrayId = rollingSourceArrayId - 1
+    }
+  }
+
+  def iterator: Iterator[Int] = {
+    val t = new Iterator[Int] {
+      private var rollingSourceArrayId = 0
+      private var elemIdx = -1
+
+      @tailrec
+      def advance: Unit = {
+        elemIdx = elemIdx + 1
+        if (rollingSourceArrayId >= 0) {
+          if (rollingSourceArrayId == left.length) {
+            rollingSourceArrayId = -right.length
+          } else if ((left(rollingSourceArrayId) eq null) || (elemIdx >= left(rollingSourceArrayId).length)) {
+            rollingSourceArrayId = rollingSourceArrayId + 1
+            elemIdx = -1
+            advance
+          } else {} // done
+        } else {
+          if (rollingSourceArrayId == -1) {
+            if (elemIdx > 0) () // finish
+          } else if ((right(-rollingSourceArrayId - 1) eq null) || elemIdx >= right(-rollingSourceArrayId - 1).length) {
+            rollingSourceArrayId = rollingSourceArrayId + 1
+            elemIdx = -1
+            advance
+          } else {} // done
+        }
+      }
+
+      def hasNext: Boolean = {
+        if (elemIdx == -1) advance
+        !(rollingSourceArrayId == -1 && ((right(0) eq null) || elemIdx > 0))
+      }
+
+
+      def next(): Int = {
+        if (!hasNext) ???
+        else {
+          var r =
+            if (rollingSourceArrayId >= 0)
+              left(rollingSourceArrayId)(elemIdx)
+            else right(-rollingSourceArrayId - 1)(right(-rollingSourceArrayId - 1).length - 1  - elemIdx)
+          advance
+          r
+        }
+      }
+    }
+    t
   }
 
 }
