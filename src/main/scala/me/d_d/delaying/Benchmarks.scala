@@ -43,6 +43,7 @@ class Benchmarks {
   val darr = DArray(1 to size :_*)
   val arr = Array(1 to size :_*)
   val vec = Vector(1 to size : _*)
+  val rrb_vec = IntRRBVector(1 to size : _*)
   val rnd = new java.util.Random(42)
 
 
@@ -64,6 +65,11 @@ class Benchmarks {
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  def rrb_vec_apply(bh: Blackhole) = rrb_vec.apply(rnd.nextInt(size))
+
+  @Benchmark
+  @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
+  @OutputTimeUnit(TimeUnit.NANOSECONDS)
   def darr_foreach(bh: Blackhole) = darr.foreach(bh.consume)
 
   @Benchmark
@@ -75,6 +81,11 @@ class Benchmarks {
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
   def vec_foreach(bh: Blackhole) = vec.foreach(bh.consume)
+
+  @Benchmark
+  @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
+  @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  def rrb_vec_foreach(bh: Blackhole) = rrb_vec.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
@@ -91,4 +102,8 @@ class Benchmarks {
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
   def vec_iterator_foreach(bh: Blackhole) = vec.iterator.foreach(bh.consume)
 
+  @Benchmark
+  @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
+  @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  def rrb_vec_iterator_foreach(bh: Blackhole) = rrb_vec.iterator.foreach(bh.consume)
 }
