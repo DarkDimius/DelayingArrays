@@ -38,12 +38,11 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
 
   def getById(id: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
     val subst1 = if (id > 0) sumLength & (java.lang.Integer.highestOneBit(id) - 1) else 0
-    var r = id - subst1
-    var c = sumLength - subst1
+    var r = id - subst1          //  this trick gave 20% speedup
+    var c = sumLength - subst1   //  todo: could we improve it?
     val subst2 = r & c
     r = r - subst2
     c = c - subst2
-    var j = 0
     var b = Integer.lowestOneBit(c)
     while (r >= b && r != 0) {
       r = r - b
