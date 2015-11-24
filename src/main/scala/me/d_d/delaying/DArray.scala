@@ -1,8 +1,13 @@
 package me.d_d.delaying
 
+import java.util
+
+import me.d_d.delaying.DArray.Update
+import me.d_d.delaying.DArray.Update
+
 import scala.annotation.{switch, tailrec}
 
-class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
+class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private var updates: util.IdentityHashMap[Array[Int], Update] = null){
   // println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}]")
                                          // 0         1  2         3   4  5  6     7 8        x
                                          // 32        31 30        30 29  29 29    29 30      numzero(x)
@@ -21,7 +26,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
 
   private var rightSize = arraySize(right)
 
-  private var l0: Array[Int] = _
+  /*private var l0: Array[Int] = _
   private var l1: Array[Int] = _
   private var l2: Array[Int] = _
   private var l3: Array[Int] = _
@@ -229,23 +234,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     case 31 => r31
   }
 
-  private def arraySize(arg: Array[Array[Int]]): Int = {
-    var i = 0
-    var acc = 0
-    while (i < arg.length) {
-      if(arg(i) ne null)
-        acc = acc + arg(i).length
-      i = i + 1
-    }
-    acc
-  }
-
-  final def larraySize(outerIdx: Int) = {
-    31 - java.lang.Integer.numberOfLeadingZeros(outerIdx + 1)
-  }
-
-
-  // sumLength: 8 + 4 + 2 + 0
+   // sumLength: 8 + 4 + 2 + 0
   // id = 2 + 1
 
   def getByIdL(idx: Int, sumLength: Int) = {
@@ -359,24 +348,95 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     arr.apply(elemId)
   }
 
-  def getById(idx: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
+  final def applyf(idx: Int) = {
+    if (idx < leftSize) getByIdL(idx, leftSize)
+    else getByIdR(leftSize + rightSize - idx - 1, rightSize)
+  }
+  */
+
+  private def arraySize(arg: Array[Array[Int]]): Int = {
+    var i = 0
+    var acc = 0
+    while (i < arg.length) {
+      if(arg(i) ne null)
+        acc = acc + arg(i).length
+      i = i + 1
+    }
+    acc
+  }
+
+  final def larraySize(outerIdx: Int) = {
+    31 - java.lang.Integer.numberOfLeadingZeros(outerIdx + 1)
+  }
+
+  def getById(idx: Int, sumLength: Int, arrays: Array[Array[Int]]): Int = {
     val id = idx + 1
     val lId = Integer.numberOfLeadingZeros(id)
     val mask = -1 >>> lId
     val maskedSum = sumLength & mask
 
-    if (maskedSum < id) {
+    var elemId = 0
+
+    val arr = if (maskedSum < id) {
       val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
-      val elemId = idx - maskedSum
+      elemId = idx - maskedSum
       //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
-      arrays(arrayId)(elemId)
+
+      arrays(arrayId)
     } else {
       val arrayId = 31 - lId
-      val elemId = idx - (sumLength & (mask >>> 1))
+      elemId = idx - (sumLength & (mask >>> 1))
       // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
-      arrays(arrayId)(elemId)
+      arrays(arrayId)
     }
 
+    var update = if(updates ne null) updates.get(arr) else null
+    while(update ne null) {
+      update.coins += 1
+      if (update.id == elemId) return update.newValue
+      else update = update.next
+    }
+
+    arr(elemId)
+
+  }
+
+  def updateById(idx: Int, newElem:Int, sumLength: Int, arrays: Array[Array[Int]]): DArray = {
+    val id = idx + 1
+    val lId = Integer.numberOfLeadingZeros(id)
+    val mask = -1 >>> lId
+    val maskedSum = sumLength & mask
+
+    var elemId = 0
+
+    val arr = if (maskedSum < id) {
+      val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+      elemId = idx - maskedSum
+      //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+
+      arrays(arrayId)
+    } else {
+      val arrayId = 31 - lId
+      elemId = idx - (sumLength & (mask >>> 1))
+      // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+      arrays(arrayId)
+    }
+
+    var update = if(updates ne null) updates.get(arr) else null
+
+    val newUpdate = new Update(arr, elemId, newElem, update)
+    val newUpdates =
+      if(this.updates ne null)
+        this.updates.clone().asInstanceOf[util.IdentityHashMap[Array[Int], Update]]
+      else
+        new util.IdentityHashMap[Array[Int], Update]()
+    newUpdates.put(arr, newUpdate)
+    new DArray(this.left, this.right, newUpdates)
+  }
+
+  final def updated(idx: Int, value: Int) = {
+    if (idx < leftSize) updateById(idx,value, leftSize, left)
+    else updateById(leftSize + rightSize - idx - 1, value, rightSize, right)
   }
 
   def getById1(id: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
@@ -395,10 +455,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     arrays(Integer.numberOfTrailingZeros(c))(r)
   }
 
-  final def applyf(idx: Int) = {
-    if (idx < leftSize) getByIdL(idx, leftSize)
-    else getByIdR(leftSize + rightSize - idx - 1, rightSize)
-  }
+
 
   final def apply(idx: Int) = {
     if (idx < leftSize) getById(idx, leftSize, left)
@@ -562,7 +619,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
       rightSize = newRightSize
       left = newLeft
       right = newRight
-      assignFields()
+      // assignFields()
     }
 
 
@@ -732,5 +789,9 @@ object DArray{
       t = t.prepend(elem)
     }
     t
+  }
+
+  class Update(val arr: Array[Int], val id: Int, val newValue: Int, var next: Update) {
+    var coins = 0
   }
 }

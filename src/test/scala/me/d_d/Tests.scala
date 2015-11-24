@@ -1,3 +1,5 @@
+import java.util.Random
+
 import me.d_d.delaying.DArray
 import org.scalatest.prop.PropertyChecks
 
@@ -7,6 +9,7 @@ import org.scalatest._
 class Spec extends FlatSpec with Matchers with PropertyChecks {
 
   val sizes = List(1000, 123132, 123132, 1)
+  val rnd = new Random(42)
 
 
   "DArray" should "be safe to iterate" in {
@@ -19,6 +22,31 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
 
   "DArray" should "be safe to foreach" in {
     sizes foreach testForeach
+  }
+
+  "DArray" should "be correctly updated" in {
+    sizes foreach testUpdate
+  }
+
+  def testUpdate(size: Int) = {
+    val r = 0 until size
+    val updates = r.map(x => (rnd.nextInt(size), rnd.nextInt(size)))
+    val orig = DArray(r: _*)
+    val updated = updates.foldLeft(orig){case (acc, (idx, elem)) => acc.updated(idx, elem)}
+    for(x <- r) {
+      try {assert(orig.apply(x) == x)}
+      catch {case e: Throwable => throw new RuntimeException("failed test size: " + size, e)}
+    }
+
+    val vec = Vector(r: _*)
+
+    val updatedVec = updates.foldLeft(vec){case (acc, (idx, elem)) => acc.updated(idx, elem)}
+
+
+    for(x <- r) {
+      try {assert(updatedVec.apply(x) == updated.apply(x))}
+      catch {case e: Throwable => throw new RuntimeException("failed test size: " + size, e)}
+    }
   }
 
   def testIter(size: Int) = {
