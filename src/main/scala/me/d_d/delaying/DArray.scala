@@ -36,17 +36,41 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
     31 - java.lang.Integer.numberOfLeadingZeros(outerIdx + 1)
   }
 
-  def getById(id: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
+
+  // sumLength: 8 + 4 + 2 + 0
+  // id = 2 + 1
+
+  def getById(idx: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
+    val id = idx + 1
+    val lId = Integer.numberOfLeadingZeros(id)
+    val mask = -1 >>> lId
+    val maskedSum = sumLength & mask
+
+    if (maskedSum < id) {
+      val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+      val elemId = idx - maskedSum
+      //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+      arrays(arrayId)(elemId)
+    } else {
+      val arrayId = 31 - lId
+      val elemId = idx - (sumLength & (mask >>> 1))
+      // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+      arrays(arrayId)(elemId)
+    }
+
+  }
+
+  def getById1(id: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
     val subst1 = if (id > 0) sumLength & (java.lang.Integer.highestOneBit(id) - 1) else 0
     var r = id - subst1          //  this trick gave 20% speedup
-    var c = sumLength - subst1   //  todo: could we improve it?
+    var c = sumLength ^ subst1   //  todo: could we improve it?
     val subst2 = r & c
-    r = r - subst2
-    c = c - subst2
+    r = r ^ subst2
+    c = c ^ subst2
     var b = Integer.lowestOneBit(c)
     while (r >= b && r != 0) {
       r = r - b
-      c = c - b
+      c = c ^ b
       b = Integer.lowestOneBit(c)
     }
     arrays(Integer.numberOfTrailingZeros(c))(r)
@@ -247,7 +271,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
       System.arraycopy(right, newArrayIdx + 1, rightArray, newArrayIdx + 1, right.length - newArrayIdx - 1)
 
     val rez = new DArray(left, rightArray)
-    rez.rebalance
+    rez.rebalance()
     rez
   }
 
@@ -322,7 +346,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
       private var elemIdx = -1
 
       @tailrec
-      def advance: Unit = {
+      def advance(): Unit = {
         elemIdx = elemIdx + 1
         if (rollingSourceArrayId >= 0) {
           if (rollingSourceArrayId == left.length) {
@@ -330,7 +354,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
           } else if ((left(rollingSourceArrayId) eq null) || (elemIdx >= left(rollingSourceArrayId).length)) {
             rollingSourceArrayId = rollingSourceArrayId + 1
             elemIdx = -1
-            advance
+            advance()
           } else {} // done
         } else {
           if (rollingSourceArrayId == -1) {
@@ -338,13 +362,13 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
           } else if ((right(-rollingSourceArrayId - 1) eq null) || elemIdx >= right(-rollingSourceArrayId - 1).length) {
             rollingSourceArrayId = rollingSourceArrayId + 1
             elemIdx = -1
-            advance
+            advance()
           } else {} // done
         }
       }
 
       def hasNext: Boolean = {
-        if (elemIdx == -1) advance
+        if (elemIdx == -1) advance()
         !(rollingSourceArrayId == -1 && ((right(0) eq null) || elemIdx > 0))
       }
 
@@ -356,7 +380,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
             if (rollingSourceArrayId >= 0)
               left(rollingSourceArrayId)(elemIdx)
             else right(-rollingSourceArrayId - 1)(right(-rollingSourceArrayId - 1).length - 1  - elemIdx)
-          advance
+          advance()
           r
         }
       }
