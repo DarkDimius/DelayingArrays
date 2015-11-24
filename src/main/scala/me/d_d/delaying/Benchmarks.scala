@@ -43,52 +43,127 @@ class Benchmarks {
   val darr = DArray(1 to size :_*)
   val arr = Array(1 to size :_*)
   val vec = Vector(1 to size : _*)
-  val rnd = new java.util.Random(42)
+
+  final def multiplier = 0x5DEECE66DL
+  final def addend = 0xBL
+  final def mask = (1L << 48) - 1
+  var seed: Long = 42L
+
+  def nextInt(): Int = {
+    val oldSeed = seed
+    seed = (oldSeed * multiplier + addend) & mask
+    (seed >>> (48 - 31)).asInstanceOf[Int]
+  }
+
+  def nextInt(bound: Int): Int = {
+    var r = nextInt()
+    val m = bound - 1
+    if ((bound & m) == 0)  // i.e., bound is a power of 2
+      r = (((bound * r.asInstanceOf[Long])) >> 31L).asInstanceOf[Int]
+    else {
+      var u = r
+      while({r = u % bound; u - r + m < 0})
+        u = nextInt()
+      ;
+    }
+    r
+  }
+
+  final val iterations = 1000 // if updated: need to update all annoataions
+
+
 
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
-  def darr_apply(bh: Blackhole) = darr.apply(rnd.nextInt(size))
+  @OperationsPerInvocation(1000)
+  def rnd_apply(bh: Blackhole) = {
+    var r = 0
+    var i = 0
+    while(i < iterations) {
+      i = i + 1
+      r += nextInt(size)
+    }
+    bh.consume(r)
+  }
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
-  def arr_apply(bh: Blackhole) = arr.apply(rnd.nextInt(size))
+  @OperationsPerInvocation(1000)
+  def darr_apply(bh: Blackhole) = {
+    var r = 0
+    var i = 0
+    while(i < iterations) {
+      i = i + 1
+      r += darr.apply(nextInt(size))
+    }
+    bh.consume(r)
+  }
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
-  def vec_apply(bh: Blackhole) = vec.apply(rnd.nextInt(size))
+  @OperationsPerInvocation(1000)
+  def arr_apply(bh: Blackhole) = {
+    var r = 0
+    var i = 0
+    while(i < iterations) {
+      i = i + 1
+      r += arr.apply(nextInt(size))
+    }
+    bh.consume(r)
+  }
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  @OperationsPerInvocation(1000)
+  def vec_apply(bh: Blackhole) = {
+    var r = 0
+    var i = 0
+    while(i < iterations) {
+      i = i + 1
+      r += vec.apply(nextInt(size))
+    }
+    bh.consume(r)
+  }
+
+  @Benchmark
+  @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
+  @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def darr_foreach(bh: Blackhole) = darr.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def arr_foreach(bh: Blackhole) = arr.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def vec_foreach(bh: Blackhole) = vec.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def darr_iterator_foreach(bh: Blackhole) = darr.iterator.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def arr_iterator_foreach(bh: Blackhole) = arr.iterator.foreach(bh.consume)
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
+  //@OperationsPerInvocation(1000)
   def vec_iterator_foreach(bh: Blackhole) = vec.iterator.foreach(bh.consume)
 
 }
