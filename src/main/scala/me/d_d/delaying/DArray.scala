@@ -1,6 +1,6 @@
 package me.d_d.delaying
 
-import scala.annotation.tailrec
+import scala.annotation.{switch, tailrec}
 
 class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
   // println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}]")
@@ -11,7 +11,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
                                          // 0         0  0         1  0  1   2     3 0
                                          // 0         0  1         0  1 2 3        0 1
   assert(left.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == math.pow(2, x._2))))
-  var leftSize = arraySize(left)
+  private var leftSize = arraySize(left)
 
                                     //       7  8 9 10    11 12   13
                                     //       6  5 4 3     2  1    0                           y =  leftSize + rightSize - x -1
@@ -19,7 +19,215 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
                                     //       29 29 29 29   30 30    31                                numzero(leftSize + rightSize - x)
   assert(right.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == math.pow(2, x._2))))
 
-  var rightSize = arraySize(right)
+  private var rightSize = arraySize(right)
+
+  private var l0: Array[Int] = _
+  private var l1: Array[Int] = _
+  private var l2: Array[Int] = _
+  private var l3: Array[Int] = _
+  private var l4: Array[Int] = _
+  private var l5: Array[Int] = _
+  private var l6: Array[Int] = _
+  private var l7: Array[Int] = _
+  private var l8: Array[Int] = _
+  private var l9: Array[Int] = _
+  private var l10: Array[Int] = _
+  private var l11: Array[Int] = _
+  private var l12: Array[Int] = _
+  private var l13: Array[Int] = _
+  private var l14: Array[Int] = _
+  private var l15: Array[Int] = _
+  private var l16: Array[Int] = _
+  private var l17: Array[Int] = _
+  private var l18: Array[Int] = _
+  private var l19: Array[Int] = _
+  private var l20: Array[Int] = _
+  private var l21: Array[Int] = _
+  private var l22: Array[Int] = _
+  private var l23: Array[Int] = _
+  private var l24: Array[Int] = _
+  private var l25: Array[Int] = _
+  private var l26: Array[Int] = _
+  private var l27: Array[Int] = _
+  private var l28: Array[Int] = _
+  private var l29: Array[Int] = _
+  private var l30: Array[Int] = _
+  private var l31: Array[Int] = _
+
+  private var r0: Array[Int] = _
+  private var r1: Array[Int] = _
+  private var r2: Array[Int] = _
+  private var r3: Array[Int] = _
+  private var r4: Array[Int] = _
+  private var r5: Array[Int] = _
+  private var r6: Array[Int] = _
+  private var r7: Array[Int] = _
+  private var r8: Array[Int] = _
+  private var r9: Array[Int] = _
+  private var r10: Array[Int] = _
+  private var r11: Array[Int] = _
+  private var r12: Array[Int] = _
+  private var r13: Array[Int] = _
+  private var r14: Array[Int] = _
+  private var r15: Array[Int] = _
+  private var r16: Array[Int] = _
+  private var r17: Array[Int] = _
+  private var r18: Array[Int] = _
+  private var r19: Array[Int] = _
+  private var r20: Array[Int] = _
+  private var r21: Array[Int] = _
+  private var r22: Array[Int] = _
+  private var r23: Array[Int] = _
+  private var r24: Array[Int] = _
+  private var r25: Array[Int] = _
+  private var r26: Array[Int] = _
+  private var r27: Array[Int] = _
+  private var r28: Array[Int] = _
+  private var r29: Array[Int] = _
+  private var r30: Array[Int] = _
+  private var r31: Array[Int] = _
+
+
+  assignFields()
+
+  private def assignFields(): Unit = {
+    if (left.length > 0)  l0 = left(0)
+    if (left.length > 1) l1 = left(1)
+    if (left.length > 2)  l2 = left(2)
+    if (left.length > 3) l3 = left(3)
+    if (left.length > 4) l4 = left(4)
+    if (left.length > 5) l5 = left(5)
+    if (left.length > 6) l6 = left(6)
+    if (left.length > 7) l7 = left(7)
+    if (left.length > 8) l8 = left(8)
+    if (left.length > 9) l9 = left(9)
+    if (left.length > 10) l10 = left(10)
+    if (left.length > 11) l11 = left(11)
+    if (left.length > 12) l12 = left(12)
+    if (left.length > 13) l13 = left(13)
+    if (left.length > 14) l14 = left(14)
+    if (left.length > 15) l15 = left(15)
+    if (left.length > 16) l16 = left(16)
+    if (left.length > 17) l17 = left(17)
+    if (left.length > 18) l18 = left(18)
+    if (left.length > 19) l19 = left(19)
+    if (left.length > 20) l20 = left(20)
+    if (left.length > 21) l21 = left(21)
+    if (left.length > 22) l22 = left(22)
+    if (left.length > 23) l23 = left(23)
+    if (left.length > 24) l24 = left(24)
+    if (left.length > 25) l25 = left(25)
+    if (left.length > 26) l26 = left(26)
+    if (left.length > 27) l27 = left(27)
+    if (left.length > 28) l28 = left(28)
+    if (left.length > 29) l29 = left(29)
+    if (left.length > 30) l30 = left(30)
+    if (left.length > 31) l31 = left(31)
+
+    if (right.length > 0) r0 = right(0)
+    if (right.length > 1) r1 = right(1)
+    if (right.length > 2) r2 = right(2)
+    if (right.length > 3) r3 = right(3)
+    if (right.length > 4) r4 = right(4)
+    if (right.length > 5) r5 = right(5)
+    if (right.length > 6) r6 = right(6)
+    if (right.length > 7) r7 = right(7)
+    if (right.length > 8) r8 = right(8)
+    if (right.length > 9) r9 = right(9)
+    if (right.length > 10) r10 = right(10)
+    if (right.length > 11) r11 = right(11)
+    if (right.length > 12) r12 = right(12)
+    if (right.length > 13) r13 = right(13)
+    if (right.length > 14) r14 = right(14)
+    if (right.length > 15) r15 = right(15)
+    if (right.length > 16) r16 = right(16)
+    if (right.length > 17) r17 = right(17)
+    if (right.length > 18) r18 = right(18)
+    if (right.length > 19) r19 = right(19)
+    if (right.length > 20) r20 = right(20)
+    if (right.length > 21) r21 = right(21)
+    if (right.length > 22) r22 = right(22)
+    if (right.length > 23) r23 = right(23)
+    if (right.length > 24) r24 = right(24)
+    if (right.length > 25) r25 = right(25)
+    if (right.length > 26) r26 = right(26)
+    if (right.length > 27) r27 = right(27)
+    if (right.length > 28) r28 = right(28)
+    if (right.length > 29) r29 = right(29)
+    if (right.length > 30) r30 = right(30)
+    if (right.length > 31) r31 = right(31)
+
+  }
+
+  @inline final def getLeft(idx: Int) = (idx: @switch) match {
+    case 0 => l0
+    case 1 => l1
+    case 2 => l2
+    case 3 => l3
+    case 4 => l4
+    case 5 => l5
+    case 6 => l6
+    case 7 => l7
+    case 8 => l8
+    case 9 => l9
+    case 10 => l10
+    case 11 => l11
+    case 12 => l12
+    case 13 => l13
+    case 14 => l14
+    case 15 => l15
+    case 16 => l16
+    case 17 => l17
+    case 18 => l18
+    case 19 => l19
+    case 20 => l20
+    case 21 => l21
+    case 22 => l22
+    case 23 => l23
+    case 24 => l24
+    case 25 => l25
+    case 26 => l26
+    case 27 => l27
+    case 28 => l28
+    case 29 => l29
+    case 30 => l30
+    case 31 => l31
+  }
+
+  @inline final def getRight(idx: Int) = (idx: @switch) match {
+    case 0 => r0
+    case 1 => r1
+    case 2 => r2
+    case 3 => r3
+    case 4 => r4
+    case 5 => r5
+    case 6 => r6
+    case 7 => r7
+    case 8 => r8
+    case 9 => r9
+    case 10 => r10
+    case 11 => r11
+    case 12 => r12
+    case 13 => r13
+    case 14 => r14
+    case 15 => r15
+    case 16 => r16
+    case 17 => r17
+    case 18 => r18
+    case 19 => r19
+    case 20 => r20
+    case 21 => r21
+    case 22 => r22
+    case 23 => r23
+    case 24 => r24
+    case 25 => r25
+    case 26 => r26
+    case 27 => r27
+    case 28 => r28
+    case 29 => r29
+    case 30 => r30
+    case 31 => r31
+  }
 
   private def arraySize(arg: Array[Array[Int]]): Int = {
     var i = 0
@@ -39,6 +247,117 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
 
   // sumLength: 8 + 4 + 2 + 0
   // id = 2 + 1
+
+  def getByIdL(idx: Int, sumLength: Int) = {
+    val id = idx + 1
+    val lId = Integer.numberOfLeadingZeros(id)
+    val mask = -1 >>> lId
+    val maskedSum = sumLength & mask
+
+    var arrayId = 0
+    var elemId = 0
+
+    if (maskedSum < id) {
+      arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+      elemId = idx - maskedSum
+      //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+    } else {
+      arrayId = 31 - lId
+      elemId = idx - (sumLength & (mask >>> 1))
+      // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+    }
+
+    var arr = (arrayId: @switch) match {
+      case 0 => l0
+      case 1 => l1
+      case 2 => l2
+      case 3 => l3
+      case 4 => l4
+      case 5 => l5
+      case 6 => l6
+      case 7 => l7
+      case 8 => l8
+      case 9 => l9
+      case 10 => l10
+      case 11 => l11
+      case 12 => l12
+      case 13 => l13
+      case 14 => l14
+      case 15 => l15
+      case 16 => l16
+      case 17 => l17
+      case 18 => l18
+      case 19 => l19
+      case 20 => l20
+      case 21 => l21
+      case 22 => l22
+      case 23 => l23
+      case 24 => l24
+      case 25 => l25
+      case 26 => l26
+      case 27 => l27
+      case 28 => l28
+      case 29 => l29
+      case 30 => l30
+      case 31 => l31
+    }
+    arr.apply(elemId)
+
+  }
+
+  def getByIdR(idx: Int, sumLength: Int) = {
+    val id = idx + 1
+    val lId = Integer.numberOfLeadingZeros(id)
+    val mask = -1 >>> lId
+    val maskedSum = sumLength & mask
+
+    var arrayId = 0
+    var elemId = 0
+    if (maskedSum < id) {
+      arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+      elemId = idx - maskedSum
+      //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+    } else {
+      arrayId = 31 - lId
+      elemId = idx - (sumLength & (mask >>> 1))
+      // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+    }
+    val arr = (arrayId: @switch) match {
+      case 0 => r0
+      case 1 => r1
+      case 2 => r2
+      case 3 => r3
+      case 4 => r4
+      case 5 => r5
+      case 6 => r6
+      case 7 => r7
+      case 8 => r8
+      case 9 => r9
+      case 10 => r10
+      case 11 => r11
+      case 12 => r12
+      case 13 => r13
+      case 14 => r14
+      case 15 => r15
+      case 16 => r16
+      case 17 => r17
+      case 18 => r18
+      case 19 => r19
+      case 20 => r20
+      case 21 => r21
+      case 22 => r22
+      case 23 => r23
+      case 24 => r24
+      case 25 => r25
+      case 26 => r26
+      case 27 => r27
+      case 28 => r28
+      case 29 => r29
+      case 30 => r30
+      case 31 => r31
+    }
+    arr.apply(elemId)
+  }
 
   def getById(idx: Int, sumLength: Int, arrays: Array[Array[Int]]) = {
     val id = idx + 1
@@ -74,6 +393,11 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
       b = Integer.lowestOneBit(c)
     }
     arrays(Integer.numberOfTrailingZeros(c))(r)
+  }
+
+  final def applyf(idx: Int) = {
+    if (idx < leftSize) getByIdL(idx, leftSize)
+    else getByIdR(leftSize + rightSize - idx - 1, rightSize)
   }
 
   final def apply(idx: Int) = {
@@ -238,6 +562,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]]){
       rightSize = newRightSize
       left = newLeft
       right = newRight
+      assignFields()
     }
 
 
