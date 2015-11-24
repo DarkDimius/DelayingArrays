@@ -35,6 +35,9 @@ class Benchmarks {
   //
   // 2: for foreach and iterator: reboxing spoils the picture
 
+  // more details including assembly: h
+  // https://gist.github.com/DarkDimius/391b8af12864135f5903
+
 
   val size = 73121
   val darr = DArray(1 to size :_*)
