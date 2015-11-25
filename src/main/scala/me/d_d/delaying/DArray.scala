@@ -7,7 +7,7 @@ import me.d_d.delaying.DArray.Update
 
 import scala.annotation.{switch, tailrec}
 
-class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private var updates: util.IdentityHashMap[Array[Int], Update] = null){
+class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private val updates: util.IdentityHashMap[Array[Int], Update] = null, private val history: Update = null){
   // println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}]")
                                          // 0         1  2         3   4  5  6     7 8        x
                                          // 32        31 30        30 29  29 29    29 30      numzero(x)
@@ -390,7 +390,10 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
       arrays(arrayId)
     }
 
-    var update = if(updates ne null) updates.get(arr) else null
+    var update = if(updates ne null) {
+      history.coins += 1
+      updates.get(arr)
+    } else null
     while(update ne null) {
       update.coins += 1
       if (update.id == elemId) return update.newValue
@@ -422,16 +425,19 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
       arrays(arrayId)
     }
 
+    if(arr(elemId) == newElem) return this;
+
     var update = if(updates ne null) updates.get(arr) else null
 
-    val newUpdate = new Update(arr, elemId, newElem, update)
+    val newUpdate = new Update(arr, elemId, newElem, update, history)
+    newUpdate.coins = if (update ne null) update.coins + 1 else 1
     val newUpdates =
       if(this.updates ne null)
         this.updates.clone().asInstanceOf[util.IdentityHashMap[Array[Int], Update]]
       else
         new util.IdentityHashMap[Array[Int], Update]()
     newUpdates.put(arr, newUpdate)
-    new DArray(this.left, this.right, newUpdates)
+    new DArray(this.left, this.right, newUpdates, newUpdate)
   }
 
   final def updated(idx: Int, value: Int) = {
@@ -499,6 +505,8 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
       var rollingTargetElemId = 0
 
       // copy from left to newLeft.
+
+      // todo: incorporate updates
 
       while(rollingSourceArrayId < left.length && rollingTargetArrayId < newLeft.length) {
         if((left(rollingSourceArrayId) eq null) || (rollingSourceElemId == left(rollingSourceArrayId).length)) {
@@ -641,6 +649,8 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
     var rollingTargetElemId = 1
     val target = new Array[Int](sz)
     target(0) = el // this is the actual append :-)
+
+    // todo: incorporate updates
     while(rollingSourceArrayId < newArrayIdx) {
       System.arraycopy(right(rollingSourceArrayId),0,target, rollingTargetElemId, right(rollingSourceArrayId).length)
       rollingTargetElemId = rollingTargetElemId + right(rollingSourceArrayId).length
@@ -675,6 +685,8 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
     var rollingTargetElemId = 1
     val target = new Array[Int](sz)
     target(0) = el // this is the actual append :-)
+
+    // todo: incorporate updates
     while(rollingSourceArrayId < newArrayIdx) {
       System.arraycopy(left(rollingSourceArrayId),0, target, rollingTargetElemId, left(rollingSourceArrayId).length)
       rollingTargetElemId = rollingTargetElemId + left(rollingSourceArrayId).length
@@ -758,7 +770,7 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
       def next(): Int = {
         if (!hasNext) ???
         else {
-          var r =
+          val r =
             if (rollingSourceArrayId >= 0)
               left(rollingSourceArrayId)(elemIdx)
             else right(-rollingSourceArrayId - 1)(right(-rollingSourceArrayId - 1).length - 1  - elemIdx)
@@ -791,7 +803,8 @@ object DArray{
     t
   }
 
-  class Update(val arr: Array[Int], val id: Int, val newValue: Int, var next: Update) {
+  class Update(val arr: Array[Int], val id: Int, val newValue: Int, val next: Update, val history: Update) {
     var coins = 0
+    var newArr: Array[Int] = null
   }
 }

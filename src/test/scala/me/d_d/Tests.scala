@@ -31,14 +31,18 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
   def testUpdate(size: Int) = {
     val r = 0 until size
     val updates = r.map(x => (rnd.nextInt(size), rnd.nextInt(size)))
+    //println(r + " " + updates)
     val orig = DArray(r: _*)
+    val vec = Vector(r: _*)
+
+    val st = System.currentTimeMillis()
     val updated = updates.foldLeft(orig){case (acc, (idx, elem)) => acc.updated(idx, elem)}
     for(x <- r) {
       try {assert(orig.apply(x) == x)}
       catch {case e: Throwable => throw new RuntimeException("failed test size: " + size, e)}
     }
 
-    val vec = Vector(r: _*)
+    val vecSt = System.currentTimeMillis()
 
     val updatedVec = updates.foldLeft(vec){case (acc, (idx, elem)) => acc.updated(idx, elem)}
 
@@ -47,6 +51,8 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
       try {assert(updatedVec.apply(x) == updated.apply(x))}
       catch {case e: Throwable => throw new RuntimeException("failed test size: " + size, e)}
     }
+    val f = System.currentTimeMillis()
+    println(s"Vector updates took ${f-vecSt} ms,\t Darr updates took ${vecSt - st} ms\n")
   }
 
   def testIter(size: Int) = {
