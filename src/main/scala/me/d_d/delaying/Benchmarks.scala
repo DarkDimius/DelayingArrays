@@ -39,25 +39,38 @@ class Benchmarks {
   // https://gist.github.com/DarkDimius/391b8af12864135f5903
 
 
-  val size = 73121
-  val darr = DArray(1 to size :_*)
-  val arr = Array(1 to size :_*)
-  val vec = Vector(1 to size : _*)
-  val rrb_vec = IntRRBVector(1 to size : _*)
+  @Param(Array("2", "7", "8", "15","16", "39", "282", "73121", "7312102"))
+  var size: Int = -1
+  var darr: DArray = _
+  var arr: Array[Int]  = _
+  var vec: Vector[Int] = _
+  var rrb_vec: IntRRBVector = _
 
+  @Setup
+  def setup(): Unit = {
+    darr = DArray(1 to size :_*)
+    arr = Array(1 to size :_*)
+    vec = Vector(1 to size :_*)
+    rrb_vec = IntRRBVector(1 to size : _*)
 
-  final def multiplier = 0x5DEECE66DL
-  final def addend = 0xBL
-  final def mask = (1L << 48) - 1
-  var seed: Long = 42L
+  }
 
+  var seedi: Int = 1055984764
+
+  // https://en.wikipedia.org/wiki/MINSTD
   def nextInt(): Int = {
-    val oldSeed = seed
-    seed = (oldSeed * multiplier + addend) & mask
-    (seed >>> (48 - 31)).asInstanceOf[Int]
+    seedi = seedi * 48271
+    seedi
   }
 
   def nextInt(bound: Int): Int = {
+    val r = nextInt() % bound
+    if (r >= 0)
+      r
+    else r + bound
+  }
+
+  /*def nextInt(bound: Int): Int = {
     var r = nextInt()
     val m = bound - 1
     if ((bound & m) == 0)  // i.e., bound is a power of 2
@@ -69,7 +82,7 @@ class Benchmarks {
       ;
     }
     r
-  }
+  }*/
 
   final val iterations = 1000 // if updated: need to update all annoataions
 
@@ -135,7 +148,16 @@ class Benchmarks {
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
   @OutputTimeUnit(TimeUnit.NANOSECONDS)
-  def rrb_vec_apply(bh: Blackhole) = rrb_vec.apply(rnd.nextInt(size))
+  @OperationsPerInvocation(1000)
+  def rrb_vec_apply(bh: Blackhole) = {
+    var r = 0
+    var i = 0
+    while(i < iterations) {
+      i = i + 1
+      r += rrb_vec.apply(nextInt(size))
+    }
+    bh.consume(r)
+  }
 
   @Benchmark
   @BenchmarkMode(Array(/*Mode.Throughput, */Mode.AverageTime/*, Mode.SampleTime, Mode.SingleShotTime*/))
