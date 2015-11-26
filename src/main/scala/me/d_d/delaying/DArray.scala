@@ -7,22 +7,24 @@ import me.d_d.delaying.DArray.Update
 
 import scala.annotation.{switch, tailrec}
 
-class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private val updates: util.IdentityHashMap[Array[Int], Update] = null, private val history: Update = null){
-  // println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}]")
+class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], val headsNTails: Array[Int], val headsSize: Int, val tailsSize: Int, val updates: util.IdentityHashMap[Array[Int], Update] = null, val history: Update = null){
+  import DArray._
+
+  //println(s"creating DArray[\n  left = ${left.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, \n right = ${right.map(x => if (x eq null) "null" else x.mkString("(",", ",")")).mkString("(",", ",")")}, headsNTails: ${headsNTails.mkString("(",", ",")")}]")
                                          // 0         1  2         3   4  5  6     7 8        x
                                          // 32        31 30        30 29  29 29    29 30      numzero(x)
                                          // 31        30 30        29 29  29 29     30 30      numzero(x+1)
 
                                          // 0         0  0         1  0  1   2     3 0
                                          // 0         0  1         0  1 2 3        0 1
-  assert(left.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == math.pow(2, x._2))))
+  assert(left.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == ELEMS_FIRST_ARRAY * math.pow(2, x._2))))
   private var leftSize = arraySize(left)
 
                                     //       7  8 9 10    11 12   13
                                     //       6  5 4 3     2  1    0                           y =  leftSize + rightSize - x -1
                                     //       29 29 29 30   30 31    32                                numzero(y)
                                     //       29 29 29 29   30 30    31                                numzero(leftSize + rightSize - x)
-  assert(right.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == math.pow(2, x._2))))
+  assert(right.zipWithIndex.forall(x => (x._1 eq null) || (x._1.length == ELEMS_FIRST_ARRAY * math.pow(2, x._2))))
 
   private var rightSize = arraySize(right)
 
@@ -378,13 +380,13 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
     var elemId = 0
 
     val arr = if (maskedSum < id) {
-      val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+      val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask) - HEADS_TAILS_BITS * 2 + 1
       elemId = idx - maskedSum
       //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
 
       arrays(arrayId)
     } else {
-      val arrayId = 31 - lId
+      val arrayId = 32 - HEADS_TAILS_BITS * 2 - lId
       elemId = idx - (sumLength & (mask >>> 1))
       // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
       arrays(arrayId)
@@ -405,39 +407,47 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
   }
 
   def updateById(idx: Int, newElem:Int, sumLength: Int, arrays: Array[Array[Int]]): DArray = {
-    val id = idx + 1
-    val lId = Integer.numberOfLeadingZeros(id)
-    val mask = -1 >>> lId
-    val maskedSum = sumLength & mask
-
-    var elemId = 0
-
-    val arr = if (maskedSum < id) {
-      val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
-      elemId = idx - maskedSum
-      //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
-
-      arrays(arrayId)
+    if(idx < leftSize || idx > sumLength - rightSize) {
+      val updId = if(idx < leftSize) leftSize - idx else HEAD_TAILS_SIZE - (idx - sumLength + rightSize)
+      val narr = new Array[Int](HEAD_TAILS_SIZE)
+      System.arraycopy(headsNTails,0, narr, 0, HEAD_TAILS_SIZE)
+      narr(updId) = newElem
+      new DArray(this.left, this.right, narr, headsSize, tailsSize, updates, this.history)
     } else {
-      val arrayId = 31 - lId
-      elemId = idx - (sumLength & (mask >>> 1))
-      // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
-      arrays(arrayId)
+      val id = idx + 1
+      val lId = Integer.numberOfLeadingZeros(id)
+      val mask = -1 >>> lId
+      val maskedSum = sumLength & mask
+
+      var elemId = 0
+
+      val arr = if (maskedSum < id) {
+        val arrayId = Integer.numberOfTrailingZeros(sumLength & ~mask)
+        elemId = idx - maskedSum
+        //println(s"1 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+
+        arrays(arrayId)
+      } else {
+        val arrayId = 31 - lId
+        elemId = idx - (sumLength & (mask >>> 1))
+        // println(s"2 id = $id, sumLength = $sumLength -> ($arrayId $elemId)")
+        arrays(arrayId)
+      }
+
+      if (arr(elemId) == newElem) return this;
+
+      var update = if (updates ne null) updates.get(arr) else null
+
+      val newUpdate = new Update(arr, elemId, newElem, update, history)
+      newUpdate.coins = if (update ne null) update.coins + 1 else 1
+      val newUpdates =
+        if (this.updates ne null)
+          this.updates.clone().asInstanceOf[util.IdentityHashMap[Array[Int], Update]]
+        else
+          new util.IdentityHashMap[Array[Int], Update]()
+      newUpdates.put(arr, newUpdate)
+      new DArray(this.left, this.right, this.headsNTails, this.headsSize, this.tailsSize, newUpdates, newUpdate)
     }
-
-    if(arr(elemId) == newElem) return this;
-
-    var update = if(updates ne null) updates.get(arr) else null
-
-    val newUpdate = new Update(arr, elemId, newElem, update, history)
-    newUpdate.coins = if (update ne null) update.coins + 1 else 1
-    val newUpdates =
-      if(this.updates ne null)
-        this.updates.clone().asInstanceOf[util.IdentityHashMap[Array[Int], Update]]
-      else
-        new util.IdentityHashMap[Array[Int], Update]()
-    newUpdates.put(arr, newUpdate)
-    new DArray(this.left, this.right, newUpdates, newUpdate)
   }
 
   final def updated(idx: Int, value: Int) = {
@@ -463,26 +473,34 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
 
 
 
-  final def apply(idx: Int) = {
+  final def applyArr(idx: Int) = {
     if (idx < leftSize) getById(idx, leftSize, left)
     else getById(leftSize + rightSize - idx - 1, rightSize, right)
   }
 
+  def apply(idx: Int) = {
+    if (idx < headsSize)
+      headsNTails(idx)
+    else if(idx >= leftSize + rightSize + headsSize)
+      headsNTails(ELEMS_HEAD + (leftSize + rightSize + headsSize + tailsSize - idx) - 1)
+    else applyArr(idx - headsSize)
+  }
+
   final def rebalance() =
-    if (leftSize > (rightSize + 1) * 2 || rightSize > (leftSize + 1) * 2) {
+    if (leftSize/ELEMS_FIRST_ARRAY > (rightSize/ELEMS_FIRST_ARRAY + 1) * 2 || rightSize/ELEMS_FIRST_ARRAY > (leftSize/ELEMS_FIRST_ARRAY + 1) * 2) {
 
       // determine new sizes
-      val newRightSize = rightSize / 2 + leftSize / 2
+      val newRightSize = (rightSize / 2 / ELEMS_FIRST_ARRAY + leftSize / 2 / ELEMS_FIRST_ARRAY) * ELEMS_FIRST_ARRAY
 
       val newLeftSize = leftSize + rightSize - newRightSize
-      val leftArraySize = larraySize(newLeftSize - 1) + 1
-      val rightArraySize = larraySize(newRightSize - 1) + 1
+      val leftArraySize = larraySize(newLeftSize - 1) - HEADS_TAILS_BITS + 1
+      val rightArraySize = larraySize(newRightSize - 1) - HEADS_TAILS_BITS + 1
 
       def rellocateNewArray(elemCount: Int, arraySize: Int): Array[Array[Int]] = {
         val arr = new Array[Array[Int]](arraySize)
-        var i = elemCount
+        var i = elemCount / ELEMS_FIRST_ARRAY
         var j = 0
-        var sz = 1
+        var sz = ELEMS_FIRST_ARRAY
         while(i > 0) {
           if ((i & 1) == 1)
             arr(j) = new Array[Int](sz)
@@ -632,76 +650,108 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
 
 
   def append(el: Int): DArray = {
-    val newLeftSize = this.leftSize
-    val newRightSize = this.rightSize + 1
-    val newRightArraySize = larraySize(this.rightSize) + 1
-    val rightArray = new Array[Array[Int]](newRightArraySize)
+    if(tailsSize < ELEMS_HEAD) {
+      val narr = new Array[Int](HEAD_TAILS_SIZE)
+      System.arraycopy(headsNTails,0 ,narr, 0, ELEMS_HEAD)  //todo: 16 -> headsSize
+      System.arraycopy(headsNTails, ELEMS_HEAD, narr, ELEMS_HEAD + 1, tailsSize)
 
-    var newArrayIdx = 0
-    var sz = 1
-    while((newArrayIdx < right.length) && (right(newArrayIdx) ne null)) {
-      newArrayIdx = newArrayIdx + 1
-      sz = sz * 2
+      narr(ELEMS_HEAD) = el
+      new DArray(this.left, this.right, narr, headsSize, tailsSize + 1, updates, this.history)
+    } else {
+      val newLeftSize = this.leftSize
+      val newRightSize = this.rightSize + ELEMS_FIRST_ARRAY
+      val newRightArraySize = larraySize(this.rightSize) + 1
+      val rightArray = new Array[Array[Int]](newRightArraySize)
+
+      var newArrayIdx = 0
+      var sz = ELEMS_FIRST_ARRAY
+      while ((newArrayIdx < right.length) && (right(newArrayIdx) ne null)) {
+        newArrayIdx = newArrayIdx + 1
+        sz = sz * 2
+      }
+
+
+      val newHeadsNTails = new Array[Int](HEAD_TAILS_SIZE)
+      System.arraycopy(headsNTails, 0, newHeadsNTails, 0, ELEMS_HEAD) //todo: 16 -> headsSize
+      System.arraycopy(headsNTails, ELEMS_HEAD, newHeadsNTails, ELEMS_HEAD + 1, ELEMS_FIRST_ARRAY)
+
+      newHeadsNTails(ELEMS_HEAD) = el
+
+      var rollingSourceArrayId = 0
+
+      var rollingTargetElemId = ELEMS_FIRST_ARRAY
+      val target = new Array[Int](sz)
+
+      System.arraycopy(headsNTails, ELEMS_HEAD + ELEMS_FIRST_ARRAY, target, 0, ELEMS_FIRST_ARRAY)
+      // todo: incorporate updates
+      while (rollingSourceArrayId < newArrayIdx) {
+        System.arraycopy(right(rollingSourceArrayId), 0, target, rollingTargetElemId, right(rollingSourceArrayId).length)
+        rollingTargetElemId = rollingTargetElemId + right(rollingSourceArrayId).length
+        rollingSourceArrayId = rollingSourceArrayId + 1
+      }
+      rightArray(newArrayIdx) = target
+
+
+      if (newArrayIdx < right.length)
+        System.arraycopy(right, newArrayIdx + 1, rightArray, newArrayIdx + 1, right.length - newArrayIdx - 1)
+
+      val rez = new DArray(left, rightArray, newHeadsNTails, headsSize, ELEMS_FIRST_ARRAY + 1, updates, history)
+      rez.rebalance()
+      rez
     }
-
-    var rollingSourceArrayId = 0
-
-    var rollingTargetElemId = 1
-    val target = new Array[Int](sz)
-    target(0) = el // this is the actual append :-)
-
-    // todo: incorporate updates
-    while(rollingSourceArrayId < newArrayIdx) {
-      System.arraycopy(right(rollingSourceArrayId),0,target, rollingTargetElemId, right(rollingSourceArrayId).length)
-      rollingTargetElemId = rollingTargetElemId + right(rollingSourceArrayId).length
-      rollingSourceArrayId = rollingSourceArrayId + 1
-    }
-    rightArray(newArrayIdx) = target
-
-
-    if(newArrayIdx < right.length)
-      System.arraycopy(right, newArrayIdx + 1, rightArray, newArrayIdx + 1, right.length - newArrayIdx - 1)
-
-    val rez = new DArray(left, rightArray)
-    rez.rebalance()
-    rez
   }
 
   def prepend(el: Int): DArray = {
-    val newLeftSize = this.leftSize + 1
-    val newRightSize = this.rightSize
-    val newLeftArraySize = larraySize(this.leftSize) + 1
-    val leftArray = new Array[Array[Int]](newLeftArraySize)
+    if(headsSize < ELEMS_HEAD) {
+      val narr = new Array[Int](HEAD_TAILS_SIZE)
+      System.arraycopy(headsNTails,0 ,narr, 0, HEAD_TAILS_SIZE)  //todo: 16 -> headsSize
 
-    var newArrayIdx = 0
-    var sz = 1
-    while((newArrayIdx < left.length) && (left(newArrayIdx) ne null)) {
-      newArrayIdx = newArrayIdx + 1
-      sz = sz * 2
+      narr(headsSize) = el
+      new DArray(this.left, this.right, narr, headsSize + 1, tailsSize, updates, this.history)
+    } else {
+      val newLeftSize = this.leftSize + ELEMS_FIRST_ARRAY
+      val newRightSize = this.rightSize
+      val newLeftArrSize = larraySize(this.leftSize) + 1
+      val leftArrays = new Array[Array[Int]](newLeftArrSize)
+
+      var newArrayIdx = 0
+      var sz = ELEMS_FIRST_ARRAY
+      while ((newArrayIdx < right.length) && (right(newArrayIdx) ne null)) {
+        newArrayIdx = newArrayIdx + 1
+        sz = sz * 2
+      }
+
+
+      val newHeadsNTails = new Array[Int](HEAD_TAILS_SIZE)
+      System.arraycopy(headsNTails, ELEMS_HEAD, newHeadsNTails, ELEMS_HEAD, ELEMS_HEAD) //todo: 16 -> headsSize
+      System.arraycopy(headsNTails, 0, newHeadsNTails, 0, ELEMS_FIRST_ARRAY)
+
+      newHeadsNTails(ELEMS_FIRST_ARRAY) = el
+
+      var rollingSourceArrayId = 0
+
+      var rollingTargetElemId = ELEMS_FIRST_ARRAY
+      val target = new Array[Int](sz)
+
+      System.arraycopy(headsNTails, ELEMS_HEAD + ELEMS_FIRST_ARRAY, target, 0, ELEMS_HEAD)
+      // todo: incorporate updates
+      while (rollingSourceArrayId < newArrayIdx) {
+        System.arraycopy(left(rollingSourceArrayId), 0, target, rollingTargetElemId, left(rollingSourceArrayId).length)
+        rollingTargetElemId = rollingTargetElemId + left(rollingSourceArrayId).length
+        rollingSourceArrayId = rollingSourceArrayId + 1
+      }
+      leftArrays(newArrayIdx) = target
+
+
+      if (newArrayIdx < right.length)
+        System.arraycopy(left, newArrayIdx + 1, leftArrays, newArrayIdx + 1, left.length - newArrayIdx - 1)
+
+      val rez = new DArray(leftArrays, right, newHeadsNTails, ELEMS_FIRST_ARRAY + 1, tailsSize, updates, history)
+      rez.rebalance()
+      rez
     }
-
-    var rollingSourceArrayId = 0
-
-    var rollingTargetElemId = 1
-    val target = new Array[Int](sz)
-    target(0) = el // this is the actual append :-)
-
-    // todo: incorporate updates
-    while(rollingSourceArrayId < newArrayIdx) {
-      System.arraycopy(left(rollingSourceArrayId),0, target, rollingTargetElemId, left(rollingSourceArrayId).length)
-      rollingTargetElemId = rollingTargetElemId + left(rollingSourceArrayId).length
-      rollingSourceArrayId = rollingSourceArrayId + 1
-    }
-    leftArray(newArrayIdx) = target
-
-
-    if(newArrayIdx < left.length)
-      System.arraycopy(left, newArrayIdx + 1, leftArray, newArrayIdx + 1, left.length - newArrayIdx - 1)
-
-    val rez = new DArray(leftArray, right)
-    rez.rebalance()
-    rez
   }
+
 
   def foreach(f : scala.Function1[Int, Unit]): scala.Unit = {
 
@@ -786,10 +836,18 @@ class DArray(var left: Array[Array[Int]], var right: Array[Array[Int]], private 
 
 
 object DArray{
-  val empty = new DArray(Array.empty, Array.empty)
+  final val HEADS_TAILS_BITS = 1
+  final val HEAD_TAILS_SIZE = 1 << ( 2 * HEADS_TAILS_BITS + 1)
+  final val ELEMS_HEAD = HEAD_TAILS_SIZE >> 1
+  final val ELEMS_TAIL = HEAD_TAILS_SIZE >> 1
+  final val ELEMS_FIRST_ARRAY = HEAD_TAILS_SIZE >> 2
+  val empty = new DArray(Array.empty, Array.empty, new Array[Int](HEAD_TAILS_SIZE), 0, 0)
   def apply(elems: Int*) = { //todo: rewrite
     var t = empty
-    for(elem <- elems) {
+    val heads = elems.take(ELEMS_HEAD - 1)
+    for(elem <- heads)
+      t = t.prepend(elem)
+    for(elem <- elems.drop(ELEMS_HEAD - 1)) {
       t = t.append(elem)
     }
     t
