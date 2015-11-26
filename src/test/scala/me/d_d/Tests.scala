@@ -8,7 +8,7 @@ import org.scalatest._
 
 class Spec extends FlatSpec with Matchers with PropertyChecks {
 
-  val sizes = List(1000, 123132, 123132, 1)
+  val sizes = List(2, 6, 10, 24, 35, 60, 100, 250, 310, 510, 512, 1000, 123132, 123132, 1)
   val rnd = new Random(42)
 
 
@@ -16,7 +16,7 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
     sizes foreach testIter
   }
 
-  "DArray" should "be safe to iterator.iterate" in {
+  /*"DArray" should "be safe to iterator.iterate" in {
     sizes foreach testIteratorIter
   }
 
@@ -26,7 +26,7 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
 
   "DArray" should "be correctly updated" in {
     sizes foreach testUpdate
-  }
+  } */
 
   def testUpdate(size: Int) = {
     val r = 0 until size
@@ -60,7 +60,7 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
     val arr = DArray(r: _*)
     for(x <- r) {
       try {assert(arr.apply(x) == x)}
-      catch {case e: Throwable => throw new RuntimeException("failed test size: " + size, e)}
+      catch {case e: Throwable => throw new RuntimeException("failed test size: " + size + "elem: " + x, e)}
     }
   }
 
