@@ -1,167 +1,87 @@
 package me.d_d.delaying
 
-class ResizableArray(val arrays: Array[Array[Int]], val size: Int) {
+class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, heads: Array[Int]) {
 
-  def applyLoop(idx: Int): Int = {
-    var r = idx
-    var c = size
-    var lb = Integer.lowestOneBit(c)
-    while (r >= lb && r != 0) {
-      r -= lb
-      c -= lb
-      lb = Integer.lowestOneBit(c)
-    }
-    arrays(Integer.numberOfTrailingZeros(c))(r)
-  }
+  import ResizableArray._
+
+  assert(arraysTotalSize % BLOCK_SIZE == 0)
+
+  val size = heads.length + arraysTotalSize
 
   // Dmitry's version
-  def apply(idx: Int): Int = {
+  def applyArr(idx: Int): Int = {
     val hb = 32 - Integer.numberOfLeadingZeros(idx)
     val mask = (1 << hb) - 1
-    val maskedSum = size & mask
+    val maskedSum = arraysTotalSize & mask
     if (maskedSum > idx) {
       val arrayId = hb - 1
-      val elemId = idx - (size & (mask >>> 1))
+      val elemId = idx - (arraysTotalSize & (mask >>> 1))
       //println(s"-> size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
       arrays(arrayId)(elemId)
     } else {
-      val arrayId = Integer.numberOfTrailingZeros(size & ~mask)
+      val arrayId = Integer.numberOfTrailingZeros(arraysTotalSize & ~mask)
       val elemId = idx - maskedSum
       //println(s"size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
       arrays(arrayId)(elemId)
     }
   }
 
-  // Superscalar no MUL
-  def apply_no_MUL(idx: Int): Int = {
-    val lb = 31 ^ Integer.numberOfLeadingZeros(idx)
-    val mask = (1 << (lb+1)) - 1
-    val t = Integer.numberOfTrailingZeros(size & ~mask)
-    val maskedSum = size & mask
-    val corr = (idx - maskedSum) >>> 31
-    arrays(t - ((t - lb) & -corr))(idx - (maskedSum ^ (corr << lb)))
-  }
-
-  // Superscalar 1
-  def applySuperscalar1(idx: Int): Int = {
-    //println(s"size = $size idx = $idx")
-    val lb1 = 32 - Integer.numberOfLeadingZeros(idx)
-    val lb = lb1 - 1
-    val mask = (1 << lb1) - 1
-    val t = Integer.numberOfTrailingZeros(size & ~mask)
-    val maskedSum = size & mask
-    val corr = (idx - maskedSum) >>> 31
-    arrays(t - ((t - lb) & (-corr))) (idx - (maskedSum ^ (corr << lb)))
-  }
-
-  // Superscalar SHIFT
-  def applySHIFT(idx: Int): Int = {
-    //println(s"size = $size idx = $idx")
-    val lb = 31 ^ Integer.numberOfLeadingZeros(idx)
-    val mask = (1 << (lb+1)) - 1
-    val maskedSum = size & mask
-    val corr = maskedSum ^ (((idx - maskedSum) >>> 31) << lb)
-    arrays(Integer.numberOfTrailingZeros(size ^ corr))(idx - corr)
-  }
-
-  // SWAR
-  def applySWAR(idx: Int): Int = {
-    //println(s"size = $size idx = $idx")
-    var mask = (idx | (idx >>> 1))
-    mask |= mask >>> 2
-    mask |= mask >>> 4
-    mask |= mask >>> 8
-    mask |= mask >>> 16
-    val hb = (mask + 1) >>> 1
-    val maskedSum = size & mask
-    val corr = hb * ((idx - maskedSum) >>> 31)
-    arrays(Integer.numberOfTrailingZeros((size & ~mask) ^ corr))(idx - (maskedSum ^ corr))
-  }
-
-  // SWAR no MUL
-  def applySWAR_no_MUL(idx: Int): Int = {
-    //println(s"size = $size idx = $idx")
-    var mask = idx
-    mask |= mask >>> 1
-    mask |= mask >>> 2
-    mask |= mask >>> 4
-    mask |= mask >>> 8
-    mask |= mask >>> 16
-    val hb = (mask + 1) >>> 1
-    val maskedSum = size & mask
-    //val corr = hb * ((idx - maskedSum) >>> 31)
-    val corr = (-((idx - maskedSum) >>> 31) & hb) ^ maskedSum
-    arrays(Integer.numberOfTrailingZeros(size ^ corr))(idx - corr)
-  }
-
-  // Superscalar 4
-  def applySuperscalar(idx: Int): Int = {
-    //println(s"size = $size idx = $idx")
-    val lb = 31 ^ Integer.numberOfLeadingZeros(idx)//clz
-    val mask = (1 << (lb+1)) - 1
-    val t = Integer.numberOfTrailingZeros(size & ~mask)
-    //val t = Integer.numberOfTrailingZeros(size >>> (lb+1)) + (lb+1)
-    val maskedSum = size & mask
-    //val correction = maskedSum ^ (((idx - maskedSum) >>> 31) << lb)
-    //val corr = ((idx - maskedSum) >>> 31) << lb
-    //val correction = maskedSum ^ (((idx - maskedSum) >>> 31) << lb)
-    //val arrayId =
-    //val elemId =
-    //println(s"arrayId=$arrayId elemId=$elemId mask=$mask lb=$lb")
-    //val tmp = Integer.numberOfTrailingZeros(size ^ maskedSum ^ corr)
-    //if (((idx - maskedSum) >>> 31) != 0) assert(tmp == lb)
-    //else assert(tmp == t)
-    val corr = ((idx - maskedSum) >>> 31)
-    //assert(tmp == answer)
-    //arrays(Integer.numberOfTrailingZeros((size & ~mask) ^ corr))(idx - (maskedSum ^ corr))
-    //val answer = t - (t - lb) * corr
-    // val target = Integer.numberOfTrailingZeros((size & ~mask) ^ (corr << lb))
-
-    //assert(answer == target)
-
-    arrays(t - (t - lb) * corr)(idx - (maskedSum ^ (corr << lb)))
-    //arrays((t - (t+lb) * corr))(idx - (maskedSum ^ (corr << lb)))
-    //if (maskedSum <= idx) {
-    //val elemId = (idx - maskedSum)
-    //arrays(arrayId)(elemId)
-    //} else {
-    //val arrayId = hb - 1
-    //val elemId = idx - (size & (mask >>> 1))
-    //println(s"arrayId=$arrayId elemId=$elemId mask=$mask")
-    //arrays(arrayId)(elemId)
-    //}
+  def apply(idx: Int): Int = {
+    if (idx < heads.length)
+      heads(idx)
+    else
+      applyArr(idx - heads.length)
   }
 
   def prepend(elem: Int): ResizableArray = {
-    val newArrayIdx = Integer.numberOfTrailingZeros(~size)
-    val newArraysSize = arrays.length max (newArrayIdx + 1)
-    val newArrays = new Array[Array[Int]](newArraysSize)
+    if (heads.length + 1 < BLOCK_SIZE) {
+      val newHeadsSize = heads.length + 1
+      val newHeads = new Array[Int](newHeadsSize)
+      System.arraycopy(heads, 0, newHeads, 1, heads.length)
+      newHeads(0) = elem
+      new ResizableArray(arrays, arraysTotalSize, newHeads)
+    } else {
+      // 'heads' is full, merge it into 'arrays'
+      // 'arraysTotalSize' has the first 'BLOCK_BITS' bits off
+      // We need the index of the first 0 bit, after the first 'BLOCK_BITS' bits
+      val newArrayIdx = Integer.numberOfTrailingZeros(~(arraysTotalSize | (BLOCK_SIZE - 1)))
+      val newArraysSize = arrays.length max (newArrayIdx + 1)
+      val newArrays = new Array[Array[Int]](newArraysSize)
 
-    var rollingSourceArrayId = 0
-    var rollingTargetElemId = 1
-    val target = new Array[Int](1 << newArrayIdx)
+      val target = new Array[Int](1 << newArrayIdx)
+      target(0) = elem
+      System.arraycopy(heads, 0, target, 1, heads.length)
 
-    while (rollingSourceArrayId < newArrayIdx) {
-      System.arraycopy(arrays(rollingSourceArrayId), 0, target, rollingTargetElemId, arrays(rollingSourceArrayId).length)
-      rollingTargetElemId += arrays(rollingSourceArrayId).length
-      rollingSourceArrayId += 1
+      var rollingSourceArrayId = BLOCK_BITS
+      var rollingTargetElemId = BLOCK_SIZE
+
+      while (rollingSourceArrayId < newArrayIdx) {
+        System.arraycopy(arrays(rollingSourceArrayId), 0, target, rollingTargetElemId, arrays(rollingSourceArrayId).length)
+        rollingTargetElemId += arrays(rollingSourceArrayId).length
+        rollingSourceArrayId += 1
+      }
+
+      if (newArrayIdx + 1 < arrays.size)
+        System.arraycopy(arrays, newArrayIdx + 1, newArrays, newArrayIdx + 1, arrays.size - newArrayIdx - 1)
+
+      newArrays(newArrayIdx) = target
+
+      new ResizableArray(newArrays, arraysTotalSize + BLOCK_SIZE, Array.empty)
     }
-
-    if (newArrayIdx + 1 < arrays.size)
-      System.arraycopy(arrays, newArrayIdx + 1, newArrays, newArrayIdx + 1, arrays.size - newArrayIdx - 1)
-
-    target(0) = elem
-    newArrays(newArrayIdx) = target
-
-    new ResizableArray(newArrays, size + 1)
   }
 
   def foreach(f : Int => Unit): Unit = {
     var i = 0
+    while (i < heads.length) {
+      f(heads(i))
+      i += 1
+    }
+
+    i = 0
     while (i < arrays.length) {
       if (arrays(i) ne null) {
         var j = 0
-        while (j < arrays.length) {
+        while (j < arrays(i).length) {
           f(arrays(i)(j))
           j += 1
         }
@@ -183,13 +103,21 @@ class ResizableArray(val arrays: Array[Array[Int]], val size: Int) {
       }
       i -= 1
     }
+
+    i = heads.length - 1
+    while (i >= 0) {
+      f(heads(i))
+      i -= 1
+    }
   }
 
 }
 
 object ResizableArray {
+  final val BLOCK_BITS = 4
+  final val BLOCK_SIZE = 1 << BLOCK_BITS
 
-  val empty = new ResizableArray(Array.empty, 0)
+  val empty = new ResizableArray(Array.empty, 0, Array.empty)
 
   def createArrays(elems: Int*): Array[Array[Int]] = {
     val n = elems.size
@@ -207,7 +135,8 @@ object ResizableArray {
   }
 
   def apply(elems: Int*): ResizableArray = {
-    new ResizableArray(createArrays(elems: _ *), elems.size)
+    val (heads, arrays) = elems.splitAt(elems.size % BLOCK_SIZE)
+    new ResizableArray(createArrays(arrays: _ *), arrays.size, heads.toArray)
   }
 }
 
