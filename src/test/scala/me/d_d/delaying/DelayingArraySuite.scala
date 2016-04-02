@@ -49,7 +49,19 @@ class DelayingArraySuite extends FunSuite with Matchers {
       val buf = ArrayBuffer[Int]()
       darr.foreach(buf += _)
 
-      range should equal (buf)
+      buf should equal (range)
+    }
+  }
+
+  test("iterator respects sequential order") {
+    for (size <- sizes) {
+      val range = 0 until size
+      val darr = DelayingArray(range: _*)
+
+      val buf = ArrayBuffer[Int]()
+      darr.iterator.foreach(buf += _)
+
+      buf should equal (range)
     }
   }
 }

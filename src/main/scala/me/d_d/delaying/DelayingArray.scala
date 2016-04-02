@@ -1,10 +1,12 @@
 package me.d_d.delaying
 
-class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, heads: Array[Int]) {
+class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, val heads: Array[Int]) {
+
+  arr =>
 
   import ResizableArray._
 
-  assert(arraysTotalSize % BLOCK_SIZE == 0)
+  //assert(arraysTotalSize % BLOCK_SIZE == 0)
 
   val size = heads.length + arraysTotalSize
 
@@ -111,6 +113,65 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, he
     }
   }
 
+  def iterator: Iterator[Int] = new Iterator[Int] {
+    private var index = 0
+    private var curArr = Integer.numberOfTrailingZeros(arraysTotalSize)
+    private var curIndex = 0
+
+    final def hasNext: Boolean = (index < arr.size)
+
+    final def next(): Int = {
+      if (!hasNext)
+        throw new NoSuchElementException
+
+      val elem = {
+        if (index < heads.length)
+          heads(index)
+        else {
+          if (curIndex >= arrays(curArr).length) {
+            do curArr += 1 while (arrays(curArr).eq(null))
+            curIndex = 0
+          }
+          val tmp = arrays(curArr)(curIndex)
+          curIndex += 1
+          tmp
+        }
+      }
+      index += 1
+      elem
+    }
+  }
+
+  // reverse iterator
+  def riterator: Iterator[Int] = new Iterator[Int] {
+    private var index = arr.size - 1
+    private var curArr = arrays.length
+    private var curIndex = -1
+
+    final def hasNext: Boolean = (index >= 0)
+
+    final def next(): Int = {
+      if (!hasNext)
+        throw new NoSuchElementException
+
+      val elem = {
+        if (index < heads.length)
+          heads(index)
+        else {
+          if (curIndex < 0) {
+            do curArr -= 1 while (arrays(curArr).eq(null))
+            curIndex = arrays(curArr).length - 1
+          }
+          val tmp = arrays(curArr)(curIndex)
+          curIndex -= 1
+          tmp
+        }
+      }
+      index -= 1
+      elem
+    }
+  }
+
 }
 
 object ResizableArray {
@@ -140,7 +201,8 @@ object ResizableArray {
   }
 }
 
-class DelayingArray(left: ResizableArray, right: ResizableArray) {
+class DelayingArray(val left: ResizableArray, val right: ResizableArray) {
+
   val size: Int = left.size + right.size
 
   def apply(idx: Int) = {
@@ -167,16 +229,76 @@ class DelayingArray(left: ResizableArray, right: ResizableArray) {
     right.rforeach(f)
   }
 
-  // TODO: Optimize
+  // Optimize
   def iterator: Iterator[Int] = new Iterator[Int] {
-    private var index = 0
-    def hasNext: Boolean = (index < size)
-    def next(): Int = {
-      if (!hasNext) throw new NoSuchElementException
-      val elem = apply(index)
-      index += 1
-      elem
+    val leftIt = left.iterator
+    val rightIt = right.riterator
+    final def hasNext: Boolean = leftIt.hasNext || rightIt.hasNext
+    final def next(): Int = {
+      if (leftIt.hasNext) leftIt.next()
+      else if (rightIt.hasNext) rightIt.next()
+      else throw new NoSuchElementException
     }
+  }
+}
+
+class DelayingArrayIterator(val darr: DelayingArray) { /// extends Iterator[Int] {
+
+  private var index = 0
+
+  private var leftArr = Integer.numberOfTrailingZeros(darr.left.arraysTotalSize)
+  private var leftIndex = 0
+
+  private var rightArr = darr.right.arrays.length
+  private var rightIndex = -1
+
+  final val leftArrays = darr.left.arrays
+  final val rightArrays = darr.right.arrays
+  final val leftSize = darr.left.size
+  final val leftHeadsSize = darr.left.heads.length
+
+  final def hasNext: Boolean = (index < darr.size)
+
+  def foreach(f: Int => Unit): Unit = {
+    while (hasNext)
+      f(next())
+  }
+
+  final def next(): Int = {
+    if (!hasNext) throw new NoSuchElementException
+
+    val elem: Int = {
+      // iterate over left
+      if (index < leftSize) {
+        if (index < leftHeadsSize)
+          darr.left.heads(index)
+        else {
+          if (leftIndex >= leftArrays(leftArr).length) {
+            do leftArr += 1 while (leftArrays(leftArr).eq(null))
+            leftIndex = 0
+          }
+          val tmp = leftArrays(leftArr)(leftIndex)
+          leftIndex += 1
+          tmp
+        }
+      }
+      // iterate over right
+      else {
+        if (index < darr.left.size + darr.right.arraysTotalSize) {
+          if (rightIndex < 0) {
+            do rightArr -= 1 while (rightArrays(rightArr).eq(null))
+            rightIndex = rightArrays(rightArr).length - 1
+          }
+          val tmp = rightArrays(rightArr)(rightIndex)
+          rightIndex -= 1
+          tmp
+        } else
+          darr.right.heads(darr.size - index - 1)
+      }
+    }
+
+    index += 1
+    elem
   }
 }
 
