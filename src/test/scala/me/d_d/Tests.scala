@@ -5,7 +5,7 @@ import org.scalatest.prop.PropertyChecks
 
 import collection.mutable.Stack
 import org.scalatest._
-
+/*
 class Spec extends FlatSpec with Matchers with PropertyChecks {
 
   val sizes = List(2, 6, 10, 24, 35, 60, 100, 250, 310, 510, 512, 1000, 123132, 123132, 1)
@@ -95,3 +95,4 @@ class Spec extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 }
+*/
