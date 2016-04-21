@@ -2,6 +2,12 @@ package me.d_d.delaying
 
 import me.d_d.delaying.ResizableArray.Update
 
+/*
+Summary of complexities:
+apply: O(1) amortized, O(n) worst case
+update: O(lg n), O(n) worst case (if updates are applied)
+n appends/prepends: O(n lg n), best case O(1), worst case O(n)
+*/
 class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, val heads: Array[Int], val updates: Array[Update]) {
   arr =>
 
@@ -16,17 +22,32 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, va
     val hb = 32 - Integer.numberOfLeadingZeros(idx)
     val mask = (1 << hb) - 1
     val maskedSum = arraysTotalSize & mask
-    if (maskedSum > idx) {
-      val arrayId = hb - 1 - BLOCK_BITS
+    val (arrayId, elemId) = if (maskedSum > idx) {
+      val arrayId = hb - 1
       val elemId = idx - (arraysTotalSize & (mask >>> 1))
       //println(s"-> size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
-      arrays(arrayId)(elemId)
+      (arrayId, elemId)
     } else {
-      val arrayId = Integer.numberOfTrailingZeros(arraysTotalSize & ~mask) - BLOCK_BITS
+      val arrayId = Integer.numberOfTrailingZeros(arraysTotalSize & ~mask)
       val elemId = idx - maskedSum
       //println(s"size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
-      arrays(arrayId)(elemId)
+      (arrayId, elemId)
     }
+
+    val updatesHead = if (updates ne null) updates(arrayId) else null
+    var u = updatesHead
+    while (u ne null) {
+      // Coins are stored in the first update (head)
+      updatesHead.coins += 1
+      if (u.id == elemId)
+        return u.newValue
+      u = u.next
+    }
+
+    if ((updatesHead ne null) && updatesHead.coins > arrays(arrayId).length)
+      applyUpdates(arrayId, updatesHead)
+
+    arrays(arrayId)(elemId)
   }
 
   def apply(idx: Int): Int = {
@@ -36,18 +57,46 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, va
       applyArr(idx - heads.length)
   }
 
+  def applyUpdates(arrayId: Int): Unit = {
+    if (updates ne null)
+      applyUpdates(arrayId, updates(arrayId))
+  }
+
+  def applyUpdates(arrayId: Int, updatesHead: Update): Unit = {
+    var u: Update = updatesHead
+
+    if (u != null) {
+      val mark = new Array[Boolean](arrays(arrayId).length)
+      var newArr = arrays(arrayId).clone()
+      while (u != null) {
+        val idx = u.id
+        if (!mark(idx)) {
+          mark(idx) = true
+          newArr(idx) = u.newValue
+        }
+        u = u.next
+      }
+
+      arrays(arrayId) = newArr
+      // BARRIER HERE!!!
+      updates(arrayId) = null // wipe updates
+
+      // updates = null when all entries are null
+    }
+  }
+
   def updateArr(idx: Int, newElem: Int): ResizableArray = {
     val hb = 32 - Integer.numberOfLeadingZeros(idx)
     val mask = (1 << hb) - 1
     val maskedSum = arraysTotalSize & mask
 
     val (arrayId, elemId) = if (maskedSum > idx) {
-      val arrayId = hb - 1 - BLOCK_BITS
+      val arrayId = hb - 1
       val elemId = idx - (arraysTotalSize & (mask >>> 1))
       //println(s"-> size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
       (arrayId, elemId)
     } else {
-      val arrayId = Integer.numberOfTrailingZeros(arraysTotalSize & ~mask) - BLOCK_BITS
+      val arrayId = Integer.numberOfTrailingZeros(arraysTotalSize & ~mask)
       val elemId = idx - maskedSum
       //println(s"size=$size idx=$idx arrayId=$arrayId elemId=$elemId")
       (arrayId, elemId)
@@ -59,10 +108,10 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, va
     if (arr(elemId) == newElem)
       return this
 
-    var update = if (updates ne null) updates(arrayId) else null
+    var updatesHead = if (updates ne null) updates(arrayId) else null
 
-    val newUpdate = new Update(arr, elemId, newElem, update)
-    newUpdate.coins = if (update ne null) update.coins + 1 else 1
+    val newUpdate = new Update(arr, elemId, newElem, updatesHead)
+    newUpdate.coins = if (updatesHead ne null) updatesHead.coins + 1 else 1
 
     val newUpdates =
       if (updates ne null) updates.clone()
@@ -72,7 +121,12 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, va
         t
       }
 
-    new ResizableArray(arrays, arraysTotalSize, heads, newUpdates)
+    // Maybe updates should only be triggered by reads, instead of writes.
+    if ((updatesHead ne null) && updatesHead.coins > arr.length) {
+      applyUpdates(arrayId, newUpdate)
+      this
+    } else
+      new ResizableArray(arrays, arraysTotalSize, heads, newUpdates)
   }
 
   def updateById(idx: Int, newElem:Int): ResizableArray = {
@@ -97,28 +151,30 @@ class ResizableArray(val arrays: Array[Array[Int]], val arraysTotalSize: Int, va
       // 'arraysTotalSize' has the first 'BLOCK_BITS' bits off
       // We need the index of the first 0 bit, after the first 'BLOCK_BITS' bits
       val newArrayIdx = Integer.numberOfTrailingZeros(~(arraysTotalSize | (BLOCK_SIZE - 1)))
-      val newArraysSize = arrays.length max ((newArrayIdx + 1) -  BLOCK_BITS)
+      val newArraysSize = arrays.length max (newArrayIdx + 1)
       val newArrays = new Array[Array[Int]](newArraysSize)
 
       val target = new Array[Int](1 << newArrayIdx)
       target(0) = elem
       System.arraycopy(heads, 0, target, 1, heads.length)
 
-      var rollingSourceArrayId = BLOCK_BITS
+      var rollingSourceArrayId = 0
       var rollingTargetElemId = BLOCK_SIZE
 
       while (rollingSourceArrayId < newArrayIdx) {
-        System.arraycopy(arrays(rollingSourceArrayId - BLOCK_BITS), 0, target, rollingTargetElemId, arrays(rollingSourceArrayId - BLOCK_BITS).length)
-        rollingTargetElemId += arrays(rollingSourceArrayId - BLOCK_BITS).length
+        System.arraycopy(arrays(rollingSourceArrayId), 0, target, rollingTargetElemId, arrays(rollingSourceArrayId).length)
+        rollingTargetElemId += arrays(rollingSourceArrayId).length
         rollingSourceArrayId += 1
       }
 
-      if (newArrayIdx + 1 < arrays.size + BLOCK_BITS)
-        System.arraycopy(arrays, newArrayIdx + 1 - BLOCK_BITS, newArrays, newArrayIdx + 1 - BLOCK_BITS, arrays.size + BLOCK_BITS - newArrayIdx - 1)
+      if (newArrayIdx + 1 < arrays.size)
+        System.arraycopy(arrays, newArrayIdx + 1, newArrays, newArrayIdx + 1, arrays.size - newArrayIdx - 1)
 
-      newArrays(newArrayIdx - BLOCK_BITS) = target
+      newArrays(newArrayIdx) = target
 
-      new ResizableArray(newArrays, arraysTotalSize + BLOCK_SIZE, Array.empty, updates)
+      // TODO: Apply updates
+
+      new ResizableArray(newArrays, arraysTotalSize + BLOCK_SIZE, Array.empty, null)
     }
   }
 
@@ -227,17 +283,17 @@ object ResizableArray {
   final val BLOCK_BITS = 4
   final val BLOCK_SIZE = 1 << BLOCK_BITS
 
-  val empty = new ResizableArray(Array.empty, 0, Array.empty)
+  val empty = new ResizableArray(Array.empty, 0, Array.empty, null)
 
   def createArrays(elems: Int*): Array[Array[Int]] = {
     val n = elems.size
-    val arrays = Array.ofDim[Array[Int]](math.max(0, 32 - Integer.numberOfLeadingZeros(n) - BLOCK_BITS))
+    val arrays = Array.ofDim[Array[Int]](32 - Integer.numberOfLeadingZeros(n))
     var start = 0
     for {
-      i <- BLOCK_BITS until (arrays.size + BLOCK_BITS)
+      i <- arrays.indices
       if (n & (1 << i)) != 0
     } /* do */ {
-      arrays(i - BLOCK_BITS) = elems.slice(start, start + (1 << i)).toArray
+      arrays(i) = elems.slice(start, start + (1 << i)).toArray
       start += (1 << i)
     }
 
@@ -246,8 +302,9 @@ object ResizableArray {
 
   def apply(elems: Int*): ResizableArray = {
     val (heads, arrays) = elems.splitAt(elems.size % BLOCK_SIZE)
-    new ResizableArray(createArrays(arrays: _ *), arrays.size, heads.toArray, Array.empty)
+    new ResizableArray(createArrays(arrays: _ *), arrays.size, heads.toArray, null)
   }
+
 
   class Update(val arr: Array[Int], val id: Int, val newValue: Int, val next: Update) {
     var coins = 0
@@ -266,11 +323,11 @@ class DelayingArray(val left: ResizableArray, val right: ResizableArray) {
       right(size - idx - 1)
   }
 
-  def updated(idx: Int, value: Int): ResizableArray = {
+  def updated(idx: Int, value: Int): DelayingArray = {
     if (idx < left.size)
-      left.updateById(idx, value)
+      new DelayingArray(left.updateById(idx, value), right)
     else
-      right.updateById(size - idx - 1, value)
+      new DelayingArray(left, right.updateById(size - idx - 1, value))
   }
 
   def append(elem: Int): DelayingArray = {
