@@ -1,5 +1,15 @@
 import annotation.tailrec
 
+/**
+  * Functional Brainf*ck interpreter (hackerrank)
+  * The original idea was to implement a debugger, persisting
+  * the state every 10^6 operations, being able to go back
+  * and replay the program on demand, while keeping acceptable performance.
+  *
+  * A Vector is used for the persistent 'tape'
+  * Sadly Vector outperforms Delaying array, the mixed reads and updates never
+  * let the Delaying Array to settle, the list traversal overhead is to blame
+  */
 object Brainfcki {
     sealed abstract class Op
 
@@ -99,7 +109,6 @@ object Brainfcki {
 
 
   def main(args: Array[String]) {
-        //val l = readLine.split(" ").map(_.toInt)
         val stdin = readLine.toList.map(_.toInt)
         val program = readLine
         val ast = parse(program)
@@ -111,4 +120,3 @@ object Brainfcki {
         println(s"Done in ${System.currentTimeMillis() - ticks} ms")
     }
 }
-
