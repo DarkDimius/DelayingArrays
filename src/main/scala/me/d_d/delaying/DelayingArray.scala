@@ -13,18 +13,16 @@ class DelayingArray(val left: ResizableArray, val right: ResizableArray) {
 
   def updated(idx: Int, value: Int): DelayingArray = {
     if (idx < left.size)
-      new DelayingArray(left.updateById(idx, value), right)
+      new DelayingArray(left.updated(idx, value), right)
     else
-      new DelayingArray(left, right.updateById(size - idx - 1, value))
+      new DelayingArray(left, right.updated(size - idx - 1, value))
   }
 
   def append(elem: Int): DelayingArray = {
-    // rebalance?
     new DelayingArray(left, right prepend elem)
   }
 
   def prepend(elem: Int): DelayingArray = {
-    // rebalance?
     new DelayingArray(left prepend elem, right)
   }
 
